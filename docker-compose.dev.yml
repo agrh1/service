@@ -1,0 +1,165 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres_service
+    environment:
+      POSTGRES_USER: microservices
+      POSTGRES_PASSWORD: microservices
+      POSTGRES_DB: microservices_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U microservices"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - microservices_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis_service
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - microservices_network
+  
+  django:
+    build:
+      context: ./django_portal
+      dockerfile: Dockerfile
+    container_name: django_portal_service
+    environment:
+      DATABASE_URL: postgresql://microservices:microservices@postgres:5432/microservices_db
+      DEBUG: "False"
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - microservices_network
+
+  telegram:
+    build:
+      context: ./telegram_bot
+      dockerfile: Dockerfile
+    container_name: telegram_bot_service
+    environment:
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID}
+      DEBUG: "False"
+    depends_on:
+      - redis
+    networks:
+      - microservices_network
+
+  intraservice:
+    build:
+      context: ./intraservice_service
+      dockerfile: Dockerfile
+    container_name: intraservice_service
+    environment:
+      INTRASERVICE_URL: ${INTRASERVICE_URL}
+      INTRASERVICE_USERNAME: ${INTRASERVICE_USERNAME}
+      INTRASERVICE_PASSWORD: ${INTRASERVICE_PASSWORD}
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+    # здесь запускаем HTTP‑API, а НЕ celery
+    command: python main.py
+    depends_on:
+      - redis
+    networks:
+      - microservices_network
+
+  intraservice_worker:
+    build:
+      context: ./intraservice_service
+      dockerfile: Dockerfile
+    container_name: intraservice_worker
+    environment:
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+  # здесь как раз используется CMD из Dockerfile (celery -A tasks worker ...)
+  # либо явно:
+  # command: ["celery", "-A", "tasks", "worker", "--loglevel=info"]
+    depends_on:
+      - redis
+    networks:
+      - microservices_network
+
+
+
+
+
+  seafile:
+    build:
+      context: ./seafile_service
+      dockerfile: Dockerfile
+    container_name: seafile_service
+    environment:
+      SEAFILE_URL: ${SEAFILE_URL}
+      SEAFILE_USERNAME: ${SEAFILE_USERNAME}
+      SEAFILE_PASSWORD: ${SEAFILE_PASSWORD}
+      SEAFILE_LIBRARY_ID: ${SEAFILE_LIBRARY_ID}
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "8002:8002"
+    depends_on:
+      - redis
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - microservices_network
+
+  api_gateway:
+    build:
+      context: ./api_gateway
+      dockerfile: Dockerfile
+    container_name: api_gateway_service
+    ports:
+      - "8003:8003"
+    depends_on:
+      - intraservice
+      - seafile
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - microservices_network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  microservices_network:
+    driver: bridge
