@@ -3,7 +3,8 @@ from urllib.parse import urljoin
 
 from dotenv import load_dotenv
 from seafileapi import SeafileAPI
-
+import logging
+logger = logging.getLogger(__name__)
 load_dotenv()
 
 
@@ -81,3 +82,32 @@ class LinkGenerator:
         upload_link = repo.generate_upload_link(path, expire=ttl)
         return urljoin(self.server_url, upload_link)
 
+    def generate_links_for_ticket(self, ticket_id: int, link_types: str = 'both') -> Dict:
+            """
+            Генерирует upload и/или download ссылки для заявки
+            """
+            result = {
+                'status': 'ok',
+                'ticket_id': ticket_id,
+                'upload_link': None,
+                'download_link': None
+            }
+            
+            try:
+                folder_path = f'/ticket_{ticket_id}'
+                
+                if link_types in ['upload', 'both']:
+                    upload_link = self.get_upload_link(folder_path)
+                    result['upload_link'] = upload_link
+                
+                if link_types in ['download', 'both']:
+                    file_path = f'{folder_path}/file'
+                    download_link = self.get_download_link(file_path)
+                    result['download_link'] = download_link
+                
+                return result
+            except Exception as e:
+                logger.error(f"Error generating links: {str(e)}")
+                result['status'] = 'error'
+                result['error'] = str(e)
+                return result
