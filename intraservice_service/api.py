@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+import uvicorn
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 
@@ -17,6 +18,11 @@ logger = logging.getLogger(__name__)
 @app.get("/health")
 def health():
     return {"status": "ok", "service": "intraservice"}
+
+@app.get("/tasks")
+def get_tasks():
+    return {"status": "ok", "service": "open tickets"}
+
 
 # ✅ Добавь оба маршрута
 @app.get("/api/task/{ticket_id}/logs")
@@ -45,6 +51,5 @@ def get_logs(data: dict):
     }
 
 if __name__ == "__main__":
-    import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8001)
 

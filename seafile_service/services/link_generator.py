@@ -3,8 +3,14 @@ from urllib.parse import urljoin
 
 from dotenv import load_dotenv
 from seafileapi import SeafileAPI
+
+
 import logging
+from typing import Dict, Optional
+from config import settings
+
 logger = logging.getLogger(__name__)
+
 load_dotenv()
 
 
@@ -56,7 +62,7 @@ class LinkGenerator:
             # Если папка уже есть или другая не критичная ошибка – просто игнорируем
             pass
 
-    def generate_download_link(self, path: str, ttl: int = 3600) -> str:
+    def get_download_link(self, path: str, ttl: int = 3600) -> str:
         """
         Генерирует временную ссылку для скачивания файла/папки.
         path – путь внутри библиотеки, например '/tickets/1234/report.pdf'
@@ -70,7 +76,7 @@ class LinkGenerator:
         # share_link обычно уже полный URL, но на всякий случай соберём от базового
         return urljoin(self.server_url, share_link)
 
-    def generate_upload_link(self, path: str, ttl: int = 3600) -> str:
+    def get_upload_link(self, path: str, ttl: int = 3600) -> str:
         """
         Генерирует временную ссылку для загрузки файлов в указанную папку.
         path – путь папки внутри библиотеки, например '/tickets/1234'

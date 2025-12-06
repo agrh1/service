@@ -14,37 +14,9 @@ async def cmd_status(message: Message):
     logger.info(f"User {message.from_user.id} checking status")
     
     await message.reply("⏳ Проверяю статус системы...")
-    
-#    services = {
- #       'Django': 'http://django:8000/health/',
- #       'Redis': 'http://redis:6379',
- #   }
- #   
-    statuses = {}
- #   
- #   for name, url in services.items():
- #       try:
- #           async with aiohttp.ClientSession() as session:
- #               if 'redis' in name.lower():
- #                   # Redis проверяем по-другому
- #                   r = redis.Redis(host='redis', port=6379, db=0)
- #                   r.ping()
- #                   statuses[name] = '✅'
- #               else:
- #                   async with session.get(url, timeout=5) as resp:
- #                       statuses[name] = '✅' if resp.status == 200 else '❌'
- #       except Exception as e:
- #           logger.error(f"Error checking {name}: {e}")
- #           statuses[name] = '❌'
- #   
-#    text = "📊 Статус сервисов:\n\n"
-#    for name, status in statuses.items():
-#        text += f"{status} {name}\n"
-#    
-#    await message.reply(text)
-#
 
-# 1. Django по HTTP
+    statuses = {}
+
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get("http://django:8000/health/", timeout=5) as resp:
