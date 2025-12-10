@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     API_GATEWAY_URL: str = "http://api_gateway:8003"
     DEBUG: bool = False
     LOG_LEVEL: str = "INFO"
+    METRICS_PORT: int = 9102
     
     class Config:
         env_file = '.env'

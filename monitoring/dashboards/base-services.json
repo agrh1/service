@@ -1,0 +1,84 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "panels": [
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 80}]}
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "id": 1,
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "single"}},
+      "targets": [
+        {"expr": "sum(rate(api_gateway_flask_http_request_total[5m]))", "legendFormat": "API Gateway rps", "refId": "A"},
+        {"expr": "sum(rate(seafile_flask_http_request_total[5m]))", "legendFormat": "Seafile rps", "refId": "B"},
+        {"expr": "sum(rate(http_requests_total{job=\"intraservice\"}[5m]))", "legendFormat": "IntraService rps", "refId": "C"}
+      ],
+      "title": "HTTP RPS",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "orange", "value": 70}, {"color": "red", "value": 90}]}}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+      "id": 2,
+      "options": {"reduceOptions": {"calcs": ["last"], "fields": ""}, "orientation": "horizontal", "showThresholdLabels": true, "showThresholdMarkers": true},
+      "targets": [
+        {"expr": "node_load1", "legendFormat": "Load 1m", "refId": "A"},
+        {"expr": "avg(rate(container_cpu_usage_seconds_total{image!=""}[5m]))", "legendFormat": "Container CPU avg", "refId": "B"}
+      ],
+      "title": "Host & container load",
+      "type": "gauge"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "id": 3,
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "single"}},
+      "targets": [
+        {"expr": "sum by (queue) (celery_queue_length)", "legendFormat": "{{queue}}", "refId": "A"}
+      ],
+      "title": "Celery queues",
+      "type": "barchart"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "id": 4,
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "single"}},
+      "targets": [
+        {"expr": "sum(rate(redis_commands_processed_total[5m]))", "legendFormat": "Redis ops", "refId": "A"},
+        {"expr": "sum(rate(pg_stat_database_xact_commit[5m]))", "legendFormat": "Postgres commits", "refId": "B"}
+      ],
+      "title": "Database throughput",
+      "type": "timeseries"
+    }
+  ],
+  "schemaVersion": 39,
+  "style": "dark",
+  "tags": ["microservices", "observability"],
+  "templating": {"list": []},
+  "time": {"from": "now-3h", "to": "now"},
+  "title": "Microservices overview",
+  "version": 1
+}

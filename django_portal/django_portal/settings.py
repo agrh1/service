@@ -7,8 +7,8 @@ load_dotenv()
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'dev-secret-key-change-in-production')
-DEBUG = os.getenv('DEBUG', 'False') == 'True'
-ALLOWED_HOSTS = ['*']
+DEBUG = os.getenv('DJANGO_DEBUG', 'False').lower() == 'true'
+ALLOWED_HOSTS = os.getenv('DJANGO_ALLOWED_HOSTS', '*').split(',')
 
 # ✅ ПОЛНЫЙ СПИСОК (не сокращённый!)
 INSTALLED_APPS = [
@@ -54,11 +54,11 @@ TEMPLATES = [
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'microservices_db',
-        'USER': 'microservices',
-        'PASSWORD': 'microservices',
-        'HOST': 'postgres',
-        'PORT': '5432',
+        'NAME': os.getenv('POSTGRES_DB', 'microservices_db'),
+        'USER': os.getenv('POSTGRES_USER', 'microservices'),
+        'PASSWORD': os.getenv('POSTGRES_PASSWORD', 'microservices'),
+        'HOST': os.getenv('POSTGRES_HOST', 'postgres'),
+        'PORT': os.getenv('POSTGRES_PORT', '5432'),
     }
 }
 

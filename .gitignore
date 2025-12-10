@@ -1,0 +1,39 @@
+# Environment
+.env
+*.env
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pdb
+*.pytest_cache/
+.mypy_cache/
+
+# macOS
+.DS_Store
+
+# Editor/IDE
+.vscode/
+.idea/
+
+# Docker volumes and data
+postgres_data/
+redis_data/
+prometheus_data/
+grafana_data/
+backups/
+
+# Logs and temp files
+*.log
+*.tmp
+
+# Coverage
+htmlcov/
+.coverage*
+
+# Build artifacts
+*.egg-info/
+dist/
+build/

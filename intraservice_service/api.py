@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 import uvicorn
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_fastapi_instrumentator import Instrumentator
 import logging
 
 app = FastAPI(title="IntraService API")
@@ -14,6 +15,8 @@ app.add_middleware(
 )
 
 logger = logging.getLogger(__name__)
+
+Instrumentator().instrument(app).expose(app, include_in_schema=False)
 
 @app.get("/health")
 def health():

@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify
+from prometheus_flask_exporter import PrometheusMetrics
 from services.link_generator import LinkGenerator
 from config import settings
 import logging
@@ -7,6 +8,8 @@ logging.basicConfig(level=getattr(logging, settings.LOG_LEVEL))
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+metrics = PrometheusMetrics(app, defaults_prefix="seafile")
+metrics.info("app_info", "Seafile service", version="1.0.0")
 generator = LinkGenerator()
 
 @app.route('/health', methods=['GET'])

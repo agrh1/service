@@ -1,0 +1,10 @@
+apiVersion: 1
+
+dashboardProviders:
+  - name: 'default'
+    orgId: 1
+    folder: 'Microservices'
+    type: file
+    disableDeletion: false
+    options:
+      path: /var/lib/grafana/dashboards

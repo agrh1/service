@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify
+from prometheus_flask_exporter import PrometheusMetrics
 from workflows.get_logs_workflow import (
     GetLogsWorkflow,
     GetLogsWorkflowRequest
@@ -12,6 +13,8 @@ logging.basicConfig(level=getattr(logging, settings.LOG_LEVEL))
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+metrics = PrometheusMetrics(app, defaults_prefix="api_gateway")
+metrics.info("app_info", "API Gateway", version="1.0.0")
 
 workflow = GetLogsWorkflow(
     intraservice_url=settings.INTRASERVICE_URL,
