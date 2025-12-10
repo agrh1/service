@@ -2,8 +2,8 @@ from aiogram import Router
 from aiogram.types import Message
 from aiogram.filters import Command
 from utils.logger import get_logger
+from config import settings
 import aiohttp
-import redis
 
 logger = get_logger(__name__)
 gettickets_router = Router()
@@ -18,21 +18,23 @@ async def gettickets(message: Message):
     
     await message.reply("⏳ Проверяю новые тикеты...")
 
-    status = {}
-    await message.reply("⏳ заходим в try...")
+    status = {"API Gateway": "❌"}
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get("http://intraservice:8001/tasks/", timeout=5) as resp:
-                status["Intraservice"] = "✅" if resp.status == 200 else "❌"
-
-        
-                await message.reply(status["Intraservice"]) 
-                await message.reply(str(resp.status)) 
-                await message.reply(str(resp.text)) 
+            url = f"{settings.API_GATEWAY_URL}/api/tickets"
+            async with session.get(url, timeout=10) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    tickets = data.get("tickets", [])
+                    status["API Gateway"] = "✅"
+                    await message.reply(f"✅ Найдено заявок: {len(tickets)}")
+                else:
+                    text = await resp.text()
+                    await message.reply(f"❌ Ошибка {resp.status}: {text}")
     except Exception as e:
-        logger.error(f"Error checking Intraservice: {e}")
-        status["Intraservice"] = "❌"
+        logger.error(f"Error checking tickets via gateway: {e}")
+        await message.reply(f"❌ Ошибка обращения к API Gateway: {e}")
 
 
 
-    await message.reply(status["Intraservice"])
+    await message.reply(status["API Gateway"])

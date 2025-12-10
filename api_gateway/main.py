@@ -5,6 +5,7 @@ from workflows.get_logs_workflow import (
 )
 from config import settings
 import asyncio
+import aiohttp
 import logging
 
 logging.basicConfig(level=getattr(logging, settings.LOG_LEVEL))
@@ -60,6 +61,23 @@ def get_logs():
         logger.error(f'Ошибка: {str(e)}')
         return jsonify({'error': str(e)}), 500
 
+
+@app.route('/api/tickets', methods=['GET'])
+def get_tickets():
+    """Получение списка заявок через IntraService"""
+    limit = request.args.get('limit', default=50, type=int)
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    
+    try:
+        tickets = loop.run_until_complete(fetch_tickets(limit))
+        return jsonify({'status': 'ok', 'tickets': tickets}), 200
+    except Exception as e:
+        logger.error(f'Ошибка при получении заявок: {str(e)}')
+        return jsonify({'error': str(e)}), 502
+    finally:
+        loop.close()
+
 if __name__ == '__main__':
     app.run(
         host='0.0.0.0',
@@ -67,3 +85,13 @@ if __name__ == '__main__':
         debug=settings.DEBUG
     )
 
+
+async def fetch_tickets(limit: int):
+    """Получает список заявок из IntraService через HTTP"""
+    async with aiohttp.ClientSession() as session:
+        url = f"{settings.INTRASERVICE_URL}/tasks"
+        async with session.get(url, params={'limit': limit}, timeout=10) as response:
+            if response.status == 200:
+                return await response.json()
+            text = await response.text()
+            raise Exception(f"HTTP {response.status}: {text}")

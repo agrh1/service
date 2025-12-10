@@ -2,7 +2,6 @@ from aiogram import Router
 from aiogram.types import Message
 from aiogram.filters import Command
 from utils.logger import get_logger
-import re
 
 logger = get_logger(__name__)
 getlogs_router = Router()
@@ -19,7 +18,7 @@ async def cmd_getlogs(message: Message):
             await message.reply("❌ Использование: /getlogs <номер_заявки>\nПример: /getlogs 12345")
             return
         
-        ticket_id = int(args)
+        ticket_id = int(args[1])
         
         await message.reply(f"⏳ Получаю логи для заявки {ticket_id}...")
         
@@ -43,4 +42,3 @@ async def cmd_getlogs(message: Message):
     except Exception as e:
         logger.error(f"Error in getlogs: {e}")
         await message.reply(f"❌ Ошибка: {str(e)}")
-

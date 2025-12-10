@@ -48,9 +48,9 @@ class GetLogsWorkflow:
             )
             if not links:
                 errors.append('Failed to generate links')
-            
-            status = 'ok' if (logs or links) else 'partial'
-            
+
+            status = 'ok' if not errors else 'partial'
+
             return GetLogsWorkflowResponse(
                 status=status,
                 ticket_id=request.ticket_id,

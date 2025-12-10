@@ -25,7 +25,7 @@ class IntraServiceAPI:
                 timeout=10
             )
             
-            if response.status_code in [200, 401]:
+            if response.status_code == 200:
                 self.authenticated = True
                 logger.info('Успешно аутентифицированы в IntraService')
                 return True
@@ -35,14 +35,15 @@ class IntraServiceAPI:
         
         except requests.RequestException as e:
             logger.error(f'Ошибка при логине: {str(e)}')
-            self.authenticated = True
-            return True
+            self.authenticated = False
+            return False
     
     def get_tickets(self, limit: int = 50) -> List[Dict]:
         """Получить список заявок"""
         try:
-            if not self.authenticated:
-                self.login()
+            if not self.authenticated and not self.login():
+                logger.error('Аутентификация не выполнена, пропускаем получение заявок')
+                return []
             
             response = self.session.get(
                 f'{self.base_url}/api/task',
@@ -61,8 +62,9 @@ class IntraServiceAPI:
     def get_ticket_logs(self, ticket_id: int) -> str:
         """Получить логи заявки"""
         try:
-            if not self.authenticated:
-                self.login()
+            if not self.authenticated and not self.login():
+                logger.error('Аутентификация не выполнена, пропускаем получение логов')
+                return ''
             
             response = self.session.get(
                 f'{self.base_url}/api/task/{ticket_id}/logs',
@@ -76,4 +78,3 @@ class IntraServiceAPI:
         except requests.RequestException as e:
             logger.error(f'Ошибка при получении логов {ticket_id}: {str(e)}')
             return ''
-
