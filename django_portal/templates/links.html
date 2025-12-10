@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Ссылки Seafile</title>
+</head>
+<body>
+<h1>Ссылки и статусы</h1>
+<table border="1">
+    <tr>
+        <th>Ticket</th>
+        <th>Upload</th>
+        <th>Download</th>
+        <th>Status</th>
+    </tr>
+    {% for link in links %}
+        <tr>
+            <td>{{ link.ticket.ticket_id }}</td>
+            <td>{{ link.upload_link }}</td>
+            <td>{{ link.download_link }}</td>
+            <td>{{ link.get_status_display }}</td>
+        </tr>
+    {% endfor %}
+</table>
+</body>
+</html>

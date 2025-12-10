@@ -9,6 +9,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Копирование кода
 COPY . .
 
+# Подготовка статики
+RUN python manage.py collectstatic --noinput || true
+
 # Health check
 HEALTHCHECK --interval=10s --timeout=5s --retries=3 \
     CMD python -c "import requests; requests.get('http://localhost:8000/health')" || exit 1
