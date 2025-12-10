@@ -48,17 +48,24 @@ services:
     environment:
       DATABASE_URL: postgresql://microservices:microservices@postgres:5432/microservices_db
       DEBUG: "False"
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
     ports:
       - "8000:8000"
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_started
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health/"]
       interval: 10s
       timeout: 5s
       retries: 3
       start_period: 10s
+    volumes:
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
     networks:
       - microservices_network
 
@@ -158,6 +165,8 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  static_volume:
+  media_volume:
 
 networks:
   microservices_network:
