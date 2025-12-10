@@ -4,6 +4,7 @@ services:
   postgres:
     image: postgres:15-alpine
     container_name: postgres_service
+    restart: unless-stopped
     env_file: .env
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
@@ -14,6 +15,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - backups:/backups
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 10s
@@ -26,6 +28,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: redis_service
+    restart: unless-stopped
     command: redis-server /usr/local/etc/redis/redis.conf
     ports:
       - "6379:6379"
@@ -46,33 +49,23 @@ services:
       context: ./django_portal
       dockerfile: Dockerfile
     container_name: django_portal_service
-    image: ${REGISTRY:-local}/${IMAGE_PREFIX:-service}-django:dev
+    image: ${REGISTRY:-local}/${IMAGE_PREFIX:-service}-django:latest
+    restart: unless-stopped
     env_file: .env
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
       DJANGO_DEBUG: ${DJANGO_DEBUG}
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-*}
-      DATABASE_URL: postgresql://microservices:microservices@postgres:5432/microservices_db
-      DEBUG: "False"
-      CELERY_BROKER_URL: redis://redis:6379/1
-      CELERY_RESULT_BACKEND: redis://redis:6379/2
-    ports:
-      - "8000:8000"
     depends_on:
       postgres:
         condition: service_healthy
-      redis:
-        condition: service_started
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health/"]
       interval: 10s
       timeout: 5s
       retries: 3
       start_period: 10s
-    volumes:
-      - static_volume:/app/staticfiles
-      - media_volume:/app/media
     networks:
       - microservices_network
 
@@ -81,14 +74,13 @@ services:
       context: ./api_gateway
       dockerfile: Dockerfile
     container_name: api_gateway_service
-    image: ${REGISTRY:-local}/${IMAGE_PREFIX:-service}-api_gateway:dev
+    image: ${REGISTRY:-local}/${IMAGE_PREFIX:-service}-api_gateway:latest
+    restart: unless-stopped
     env_file: .env
     environment:
       INTRASERVICE_URL: http://intraservice:8001
       SEAFILE_SERVICE_URL: http://seafile:8002
       DJANGO_URL: http://django:8000
-    ports:
-      - "8003:8003"
     depends_on:
       intraservice:
         condition: service_started
@@ -107,9 +99,8 @@ services:
       context: ./intraservice_service
       dockerfile: Dockerfile
     container_name: intraservice_service
-    image: ${REGISTRY:-local}/${IMAGE_PREFIX:-service}-intraservice:dev
-    ports:
-      - "8001:8001"
+    image: ${REGISTRY:-local}/${IMAGE_PREFIX:-service}-intraservice:latest
+    restart: unless-stopped
     env_file: .env
     environment:
       CELERY_BROKER_URL: ${CELERY_BROKER_URL}
@@ -128,8 +119,9 @@ services:
       - microservices_network
 
   intraservice_worker:
-    image: ${REGISTRY:-local}/${IMAGE_PREFIX:-service}-intraservice:dev
+    image: ${REGISTRY:-local}/${IMAGE_PREFIX:-service}-intraservice:latest
     container_name: intraservice_worker
+    restart: unless-stopped
     env_file: .env
     environment:
       CELERY_BROKER_URL: ${CELERY_BROKER_URL}
@@ -142,8 +134,9 @@ services:
       - microservices_network
 
   celery_beat:
-    image: ${REGISTRY:-local}/${IMAGE_PREFIX:-service}-intraservice:dev
+    image: ${REGISTRY:-local}/${IMAGE_PREFIX:-service}-intraservice:latest
     container_name: intraservice_beat
+    restart: unless-stopped
     env_file: .env
     environment:
       CELERY_BROKER_URL: ${CELERY_BROKER_URL}
@@ -160,7 +153,8 @@ services:
       context: ./seafile_service
       dockerfile: Dockerfile
     container_name: seafile_service
-    image: ${REGISTRY:-local}/${IMAGE_PREFIX:-service}-seafile:dev
+    image: ${REGISTRY:-local}/${IMAGE_PREFIX:-service}-seafile:latest
+    restart: unless-stopped
     env_file: .env
     environment:
       SEAFILE_URL: ${SEAFILE_URL}
@@ -168,8 +162,6 @@ services:
       SEAFILE_PASSWORD: ${SEAFILE_PASSWORD}
       SEAFILE_LIBRARY_ID: ${SEAFILE_LIBRARY_ID}
       REDIS_URL: redis://redis:6379/0
-    ports:
-      - "8002:8002"
     depends_on:
       redis:
         condition: service_healthy
@@ -187,7 +179,8 @@ services:
       context: ./telegram_bot
       dockerfile: Dockerfile
     container_name: telegram_bot_service
-    image: ${REGISTRY:-local}/${IMAGE_PREFIX:-service}-telegram:dev
+    image: ${REGISTRY:-local}/${IMAGE_PREFIX:-service}-telegram:latest
+    restart: unless-stopped
     env_file: .env
     environment:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
@@ -209,6 +202,7 @@ services:
   nginx:
     image: nginx:1.25-alpine
     container_name: nginx_reverse_proxy
+    restart: unless-stopped
     depends_on:
       django:
         condition: service_started
@@ -216,26 +210,42 @@ services:
         condition: service_started
     ports:
       - "80:80"
+      - "443:443"
     volumes:
-      - ./config/nginx/dev.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./config/nginx/prod.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./certs:/etc/nginx/certs:ro
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/stub_status || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 3
     networks:
       - microservices_network
 
+  nginx_exporter:
+    image: nginx/nginx-prometheus-exporter:1.1.0
+    container_name: nginx_exporter
+    command:
+      - "-nginx.scrape-uri=http://nginx:8080/stub_status"
+    ports:
+      - "9113:9113"
+    depends_on:
+      nginx:
+        condition: service_started
+    networks:
+      - microservices_network
+
   prometheus:
     image: prom/prometheus:v2.49.1
     container_name: prometheus
+    restart: unless-stopped
     volumes:
       - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"
-      - "--storage.tsdb.retention.time=${PROMETHEUS_RETENTION_DAYS:-15}d"
+      - "--storage.tsdb.retention.time=${PROMETHEUS_RETENTION_DAYS:-30}d"
       - "--web.enable-lifecycle"
     ports:
       - "9090:9090"
@@ -245,6 +255,7 @@ services:
   grafana:
     image: grafana/grafana:10.2.3
     container_name: grafana
+    restart: unless-stopped
     env_file: .env
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
@@ -281,6 +292,7 @@ services:
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.47.2
     container_name: cadvisor
+    restart: unless-stopped
     volumes:
       - /:/rootfs:ro
       - /var/run:/var/run:ro
@@ -332,16 +344,22 @@ services:
     networks:
       - microservices_network
 
-  nginx_exporter:
-    image: nginx/nginx-prometheus-exporter:1.1.0
-    container_name: nginx_exporter
-    command:
-      - "-nginx.scrape-uri=http://nginx:8080/stub_status"
-    ports:
-      - "9113:9113"
+  backup:
+    image: postgres:15-alpine
+    container_name: postgres_backup
+    profiles: ["maintenance"]
+    env_file: .env
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - backups:/backups
+      - ./scripts/backup_postgres.sh:/scripts/backup_postgres.sh:ro
+      - ./scripts/restore_postgres.sh:/scripts/restore_postgres.sh:ro
+    entrypoint: []
+    command: ["/scripts/backup_postgres.sh"]
     depends_on:
-      nginx:
-        condition: service_started
+      postgres:
+        condition: service_healthy
     networks:
       - microservices_network
 
@@ -351,8 +369,6 @@ volumes:
   prometheus_data:
   grafana_data:
   backups:
-  static_volume:
-  media_volume:
 
 networks:
   microservices_network:

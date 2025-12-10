@@ -26,6 +26,8 @@ class Settings(BaseSettings):
 
     DEBUG: bool = False
     LOG_LEVEL: str = "INFO"
+    METRICS_PORT: int = 9102
+    
 
     class Config:
         env_file = '.env'

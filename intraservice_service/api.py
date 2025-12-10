@@ -7,6 +7,7 @@ import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
+import logging
 
 from config import settings
 
@@ -48,6 +49,7 @@ app.add_middleware(
 
 logger = logging.getLogger(__name__)
 
+Instrumentator().instrument(app).expose(app, include_in_schema=False)
 
 @app.middleware("http")
 async def correlation_middleware(request: Request, call_next):

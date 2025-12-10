@@ -1,0 +1,122 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+env:
+  PYTHONUNBUFFERED: "1"
+  DOCKER_BUILDKIT: "1"
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r api_gateway/requirements.txt \
+                      -r seafile_service/requirements.txt \
+                      -r intraservice_service/requirements.txt \
+                      -r django_portal/requirements.txt \
+                      -r telegram_bot/requirements.txt
+          pip install flake8 mypy pytest
+
+      - name: Lint
+        run: flake8 api_gateway seafile_service intraservice_service django_portal telegram_bot
+
+      - name: Type check
+        run: mypy api_gateway seafile_service intraservice_service django_portal telegram_bot
+
+      - name: Tests
+        run: pytest
+
+  build:
+    needs: quality
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    strategy:
+      matrix:
+        include:
+          - name: api_gateway
+            context: ./api_gateway
+            dockerfile: api_gateway/Dockerfile
+          - name: django
+            context: ./django_portal
+            dockerfile: django_portal/Dockerfile
+          - name: intraservice
+            context: ./intraservice_service
+            dockerfile: intraservice_service/Dockerfile
+          - name: seafile
+            context: ./seafile_service
+            dockerfile: seafile_service/Dockerfile
+          - name: telegram
+            context: ./telegram_bot
+            dockerfile: telegram_bot/Dockerfile
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.REGISTRY }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Build and push ${{ matrix.name }}
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: |
+            ${{ secrets.REGISTRY }}/${{ secrets.IMAGE_PREFIX }}-${{ matrix.name }}:latest
+            ${{ secrets.REGISTRY }}/${{ secrets.IMAGE_PREFIX }}-${{ matrix.name }}:${{ github.sha }}
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd ${{ secrets.DEPLOY_PATH }}
+            docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml run --rm django python manage.py migrate
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+            docker system prune -f
+
+  notify:
+    needs: [quality, build, deploy]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Telegram notification
+        uses: appleboy/telegram-action@v0.1.1
+        with:
+          to: ${{ secrets.TELEGRAM_NOTIFY_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_NOTIFY_TOKEN }}
+          message: |
+            CI status: ${{ job.status }} for ${{ github.repository }} @ ${{ github.ref }}
+            Quality: ${{ needs.quality.result }} | Build: ${{ needs.build.result }} | Deploy: ${{ needs.deploy.result }}
