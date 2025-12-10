@@ -1,6 +1,12 @@
 Flask==2.3.3
 requests==2.31.0
+pydantic==2.6.3
 pydantic-settings==2.0.3
 python-dotenv==1.0.0
 redis==5.0.1
-seafileapi2
+SQLAlchemy==2.0.29
+psycopg2-binary==2.9.9
+cryptography==41.0.7
+apscheduler==3.10.4
+responses==0.25.0
+pytest==8.1.1
