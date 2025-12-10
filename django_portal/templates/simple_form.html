@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Конфигурация</title>
+</head>
+<body>
+<h1>Форма конфигурации</h1>
+<form method="post">
+    {% csrf_token %}
+    {% for field in fields %}
+        <div>
+            <label for="{{ field }}">{{ field }}</label>
+            <input type="text" id="{{ field }}" name="{{ field }}" value="{{ fields_data[field] }}" />
+        </div>
+    {% endfor %}
+    <button type="submit">Сохранить</button>
+</form>
+</body>
+</html>
