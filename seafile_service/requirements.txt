@@ -1,6 +1,6 @@
 Flask==2.3.3
 requests==2.31.0
-pydantic==2.6.3
+pydantic==2.5.3
 pydantic-settings==2.0.3
 python-dotenv==1.0.0
 redis==5.0.1
